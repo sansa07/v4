@@ -548,6 +548,76 @@ export class BoltCompatibleStorage extends DatabaseStorage {
     return super.getEvents(limit);
   }
 
+  async createReport(report: InsertReport): Promise<Report> {
+    if (this.isDemoMode) {
+      // Return a mock report for demo mode
+      return {
+        id: 'demo-report-' + Date.now(),
+        ...report,
+        status: 'pending',
+        admin_notes: null,
+        created_at: new Date(),
+        updated_at: new Date()
+      } as Report;
+    }
+    return super.createReport(report);
+  }
+
+  async getReports(limit = 50): Promise<(Report & { reporter: User; reportedUser: User; post?: Post; duaRequest?: DuaRequest })[]> {
+    if (this.isDemoMode) {
+      return []; // No reports in demo mode
+    }
+    return super.getReports(limit);
+  }
+
+  async updateReportStatus(reportId: string, status: string, adminNotes?: string): Promise<Report | undefined> {
+    if (this.isDemoMode) {
+      return undefined; // No report updates in demo mode
+    }
+    return super.updateReportStatus(reportId, status, adminNotes);
+  }
+
+  async banUser(ban: InsertUserBan): Promise<UserBan> {
+    if (this.isDemoMode) {
+      // Return a mock ban for demo mode
+      return {
+        id: 'demo-ban-' + Date.now(),
+        ...ban,
+        is_active: true,
+        created_at: new Date(),
+        updated_at: new Date()
+      } as UserBan;
+    }
+    return super.banUser(ban);
+  }
+
+  async getUserBans(userId: string): Promise<UserBan[]> {
+    if (this.isDemoMode) {
+      return []; // No bans in demo mode
+    }
+    return super.getUserBans(userId);
+  }
+
+  async isUserBanned(userId: string): Promise<boolean> {
+    if (this.isDemoMode) {
+      return false; // No bans in demo mode
+    }
+    const activeBans = await db
+      .select()
+      .from(userBans)
+      .where(
+        and(
+          eq(userBans.user_id, userId),
+          eq(userBans.is_active, true),
+          or(
+            eq(userBans.ban_type, 'permanent'),
+            gt(userBans.expires_at, new Date())
+          )
+        )
+      );
+    return activeBans.length > 0;
+  }
+
   getDatabaseStatus() {
     if (this.isDemoMode) {
       return {
